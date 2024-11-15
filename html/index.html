@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle Energético</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      text-align: center;
+      padding: 10px;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+    .log {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background-color: #f9f9f9;
+    }
+    .log p {
+      margin: 0;
+      padding: 5px 0;
+    }
+    .button-adjust {
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .button-adjust:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>Monitoramento e Controle Energético</h1>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Tipo</th>
+        <th>Valor Atual</th>
+        <th>Ajuste Automático</th>
+      </tr>
+    </thead>
+    <tbody id="sensor-data">
+      <!-- Dados dos sensores serão carregados aqui -->
+    </tbody>
+  </table>
+
+  <div class="log">
+    <h3>Log de Ajustes</h3>
+    <div id="log-messages">
+      <!-- Mensagens de ajuste serão exibidas aqui -->
+    </div>
+  </div>
+
+  <script>
+    // Função para carregar os dados dos sensores do backend com autorização
+    async function carregarSensores() {
+      try {
+        const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiaWF0IjoxNzMxNjk2NzUyfQ.sMY56ymnS9n6ZHYjRMzB6OvMef4wOr68z_QtjhYQnuo";
+
+        const response = await fetch('http://localhost:3000/get/dados', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,  // Inclui o token no cabeçalho de autorização
+            'Content-Type': 'application/json'
+          }
+        });
+
+        // Verifica se a resposta foi bem-sucedida (status 200)
+        if (!response.ok) {
+          throw new Error('Erro ao carregar dados: ' + response.statusText);
+        }
+
+        const text = await response.text(); // Lê a resposta como texto
+        let sensores;
+
+        // Tenta analisar como JSON, caso contrário, exibe uma mensagem de erro
+        try {
+          sensores = JSON.parse(text);
+        } catch (e) {
+          throw new Error('Erro ao processar os dados: ' + text);
+        }
+
+        const sensorData = document.getElementById('sensor-data');
+        const logMessages = document.getElementById('log-messages');
+
+        // Limpa dados anteriores
+        sensorData.innerHTML = '';
+        logMessages.innerHTML = '';
+
+        sensores.forEach(sensor => {
+          // Verifica se o tipo já existe na tabela e atualiza os valores
+          let row = document.querySelector(`tr[data-tipo="${sensor.tipo}"]`);
+          
+          if (!row) {
+            // Cria nova linha se o tipo não for encontrado
+            row = document.createElement('tr');
+            row.setAttribute('data-tipo', sensor.tipo);
+            row.innerHTML = `
+              <td>${sensor.tipo}</td>
+              <td id="${sensor.tipo}-valor">${sensor.valor}</td>
+              <td id="${sensor.tipo}-ajuste"></td>
+            `;
+            sensorData.appendChild(row);
+          }
+
+          // Atualiza o valor atual e ajuste
+          document.getElementById(`${sensor.tipo}-valor`).textContent = sensor.valor;
+          const ajuste = ajustarEnergia(sensor.tipo, sensor.valor);
+          document.getElementById(`${sensor.tipo}-ajuste`).textContent = ajuste;
+
+          // Adiciona mensagem ao log
+          logMessages.innerHTML += `<p>${ajuste}</p>`;
+        });
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        alert('Erro ao carregar dados: ' + error.message); // Exibe erro para o usuário
+      }
+    }
+
+    // Função para ajustar energia
+    function ajustarEnergia(tipo, valor) {
+      let mensagem = 'Nenhum ajuste necessário.';
+      if (tipo === 'temperatura' && valor > 25) {
+        mensagem = 'Climatização ajustada para reduzir temperatura.';
+      } else if (tipo === 'iluminacao' && valor < 300) {
+        mensagem = 'Iluminação ajustada para melhorar visibilidade.';
+      }
+      return mensagem;
+    }
+
+    // Atualizar os dados a cada 5 segundos
+    setInterval(carregarSensores, 5000);
+
+    // Carrega os dados ao abrir a página
+    carregarSensores();
+  </script>
+</body>
+</html>
